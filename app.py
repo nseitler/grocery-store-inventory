@@ -49,7 +49,7 @@ def load_csv_data(session, file_name, model):
             pass
 
 # Define main menu function
-def main_menu():
+def main_menu(session):
     while True:
         print("Menu Options:\nV: View Product\nN: New Product\nA: Analyze\nB: Backup")
         choice = input("Enter your choice: ").upper()
@@ -65,9 +65,24 @@ def main_menu():
             print("Invalid choice. Please choose V, N, A, or B.")
 
 # Function to view a product
-def view_product():
-    # Implement logic to view a product
-    pass
+def view_product(session):
+    while True:
+        try:
+            product_id = int(input("Enter the product ID to view: "))
+            product = session.query(Product).filter_by(product_id=product_id).first()
+            if product:
+                print(f"Product ID: {product.product_id}")
+                print(f"Name: {product.product_name}")
+                print(f"Quantity: {product.product_quantity}")
+                print(f"Price: ${product.product_price / 100:.2f}")
+                print(f"Date Updated: {product.date_updated}")
+                print(f"Brand ID: {product.brand_id}")
+                break
+            else:
+                print(f"No product found with ID {product_id}. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a valid product ID.")
+
 
 # Function to add a new product
 def add_new_product():
@@ -89,4 +104,4 @@ if __name__ == '__main__':
     session = get_session()
     load_csv_data(session, 'brands.csv', Brands)
     load_csv_data(session, 'inventory.csv', Product)
-    main_menu()
+    main_menu(session)
