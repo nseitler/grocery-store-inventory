@@ -2,6 +2,7 @@
 from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import func
 import csv
 from datetime import datetime
 
@@ -54,11 +55,11 @@ def main_menu(session):
         print("Menu Options:\nV: View Product\nN: New Product\nA: Analyze\nB: Backup")
         choice = input("Enter your choice: ").upper()
         if choice == 'V':
-            view_product()
+            view_product(session)
         elif choice == 'N':
-            add_new_product()
+            add_new_product(session)
         elif choice == 'A':
-            analyze_data()
+            analyze_data(session)
         elif choice == 'B':
             backup_data()
         else:
@@ -85,14 +86,61 @@ def view_product(session):
 
 
 # Function to add a new product
-def add_new_product():
-    # Implement logic to add a new product
-    pass
+def add_new_product(session):
+    try:
+        # Prompting user for product details
+        product_name = input("Enter the product name: ")
+        product_quantity = int(input("Enter the product quantity: "))
+        product_price = float(input("Enter the product price (in dollars, e.g., 2.99): "))
+        brand_name = input("Enter the brand name: ")
+
+        # Convert price to cents
+        product_price_in_cents = int(product_price * 100)
+
+        # Find or create brand
+        brand = session.query(Brands).filter_by(brand_name=brand_name).first()
+        if not brand:
+            brand = Brands(brand_name=brand_name)
+            session.add(brand)
+            session.commit()
+
+        # Create and add new product
+        new_product = Product(
+            product_name=product_name, 
+            product_quantity=product_quantity, 
+            product_price=product_price_in_cents, 
+            date_updated=datetime.now(), 
+            brand_id=brand.brand_id
+        )
+        session.add(new_product)
+        session.commit()
+
+        print(f"Product '{product_name}' added successfully.")
+
+    except ValueError:
+        print("Invalid input. Please ensure quantities and prices are correctly formatted.")
+
 
 # Function to analyze data
-def analyze_data():
-    # Implement logic for data analysis
-    pass
+def analyze_data(session):
+    try:
+        # Find the most expensive product
+        most_expensive_product = session.query(Product).order_by(Product.product_price.desc()).first()
+        if most_expensive_product:
+            print(f"Most Expensive Product: {most_expensive_product.product_name} at ${most_expensive_product.product_price / 100:.2f}")
+
+        # Find the least expensive product
+        least_expensive_product = session.query(Product).order_by(Product.product_price.asc()).first()
+        if least_expensive_product:
+            print(f"Least Expensive Product: {least_expensive_product.product_name} at ${least_expensive_product.product_price / 100:.2f}")
+
+        # Find the brand with the most products
+        most_products_brand = session.query(Brands.brand_name, func.count(Product.brand_id)).join(Product, Brands.brand_id == Product.brand_id).group_by(Brands.brand_name).order_by(func.count(Product.brand_id).desc()).first()
+        if most_products_brand:
+            print(f"Brand with Most Products: {most_products_brand[0]} ({most_products_brand[1]} products)")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 # Function to backup data into a CSV file
 def backup_data():
