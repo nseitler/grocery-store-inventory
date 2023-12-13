@@ -60,6 +60,8 @@ def load_csv_data(session, file_name, model):
 
                 product_price = row['product_price'].replace('$', '')
                 product_price_in_cents = int(float(product_price) * 100)
+                if product_price_in_cents < 0:
+                        raise ValueError("Error: Negative product price")
 
                 product_entry = Product(
                     product_name=row['product_name'],
@@ -75,7 +77,7 @@ def load_csv_data(session, file_name, model):
 # Define main menu function
 def main_menu(session):
     while True:
-        print("Menu Options:\nV: View Product\nN: New Product\nA: Analyze\nB: Backup")
+        print("Menu Options:\nV: View a single product's inventory\nN: Add a new product to the database\nA: View an analysis\nB: Make a backup of the entire inventory")
         choice = input("Enter your choice: ").upper()
         if choice == 'V':
             view_product(session)
