@@ -1,6 +1,6 @@
 # Import libraries
 from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func
 import csv
@@ -42,12 +42,35 @@ def get_session():
 
 # Function to load CSV data into the database
 def load_csv_data(session, file_name, model):
-    with open(file_name) as file:
-        reader = csv.reader(file)
-        next(reader) # Skip header row
+    with open(file_name, 'r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
         for row in reader:
-            # Add logic to process and add each row to the database
-            pass
+            if model == Brands:
+                brand_entry = Brands(brand_name=row['brand_name'])
+                session.add(brand_entry)
+
+            elif model == Product:
+                # Find brand_id based on brand_name
+                brand = session.query(Brands).filter_by(brand_name=row['brand_name']).first()
+                if brand:
+                    brand_id = brand.brand_id
+                else:
+                    # Handle case where brand is not found
+                    continue
+
+                product_price = row['product_price'].replace('$', '')
+                product_price_in_cents = int(float(product_price) * 100)
+
+                product_entry = Product(
+                    product_name=row['product_name'],
+                    product_quantity=int(row['product_quantity']),
+                    product_price=product_price_in_cents,
+                    date_updated=datetime.strptime(row['date_updated'], '%m/%d/%Y'),
+                    brand_id=brand_id
+                )
+                session.add(product_entry)
+
+        session.commit()
 
 # Define main menu function
 def main_menu(session):
@@ -61,7 +84,7 @@ def main_menu(session):
         elif choice == 'A':
             analyze_data(session)
         elif choice == 'B':
-            backup_data()
+            backup_data(session)
         else:
             print("Invalid choice. Please choose V, N, A, or B.")
 
@@ -143,9 +166,40 @@ def analyze_data(session):
         print(f"An error occurred: {e}")
 
 # Function to backup data into a CSV file
-def backup_data():
-    # Implement logic for data backup
-    pass
+def backup_data(session):
+    try:
+        # Backup Brands table
+        brands = session.query(Brands).all()
+        with open('brands_backup.csv', 'w', newline='', encoding='utf-8') as file:
+            fieldnames = ['Brand ID', 'Brand Name']
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            for brand in brands:
+                writer.writerow({'Brand ID': brand.brand_id, 'Brand Name': brand.brand_name})
+
+        print("Brands data backed up successfully.")
+
+        # Backup Products table
+        products = session.query(Product).all()
+        with open('products_backup.csv', 'w', newline='', encoding='utf-8') as file:
+            fieldnames = ['Product ID', 'Product Name', 'Quantity', 'Price (in cents)', 'Date Updated', 'Brand ID']
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            for product in products:
+                writer.writerow({
+                    'Product ID': product.product_id, 
+                    'Product Name': product.product_name, 
+                    'Quantity': product.product_quantity, 
+                    'Price (in cents)': product.product_price, 
+                    'Date Updated': product.date_updated, 
+                    'Brand ID': product.brand_id
+                })
+
+        print("Products data backed up successfully.")
+
+    except Exception as e:
+        print(f"An error occurred during backup: {e}")
+
 
 # Main execution
 if __name__ == '__main__':
